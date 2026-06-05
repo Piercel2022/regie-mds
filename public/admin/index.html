@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Moussa Studio — Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy: #1A1A2E; --gold: #E8B84B; --cream: #F4F0E8;
+      --green: #2D6A4F; --gray: #888; --lgray: #D3D1C7;
+      --white: #fff; --danger: #C0392B;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--cream); color: var(--navy); }
+
+    header { background: var(--navy); padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid var(--gold); }
+    .brand { color: var(--gold); font-weight: 700; font-size: 15px; }
+    .brand span { color: #888; font-size: 11px; font-weight: 400; margin-left: 8px; }
+
+    .page { max-width: 1100px; margin: 0 auto; padding: 28px 20px; }
+
+    /* Login */
+    #login-wrap { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 59px); }
+    .login-card { background: var(--white); border-radius: 14px; padding: 40px; width: 360px; border: 1.5px solid var(--lgray); display: flex; flex-direction: column; gap: 14px; }
+    .login-card h2 { font-size: 18px; }
+    label { font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px; }
+    input, select, textarea { width: 100%; padding: 9px 13px; border: 1.5px solid var(--lgray); border-radius: 8px; font-size: 13px; color: var(--navy); background: var(--white); outline: none; }
+    input:focus, select:focus, textarea:focus { border-color: var(--gold); }
+    textarea { min-height: 70px; resize: vertical; }
+
+    .btn { padding: 9px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: opacity .15s; }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: var(--navy); color: var(--gold); }
+    .btn-gold    { background: var(--gold); color: var(--navy); }
+    .btn-sm      { padding: 5px 12px; font-size: 12px; }
+    .btn-danger  { background: #fde8e8; color: var(--danger); }
+    .btn-ghost   { background: transparent; color: var(--navy); border: 1.5px solid var(--lgray); }
+
+    .error { color: var(--danger); font-size: 12px; }
+
+    /* Admin app */
+    #app { display: none; }
+
+    .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .toolbar h2 { font-size: 18px; }
+
+    /* Table */
+    .table-wrap { background: var(--white); border-radius: 12px; border: 1.5px solid var(--lgray); overflow: hidden; margin-bottom: 28px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: var(--navy); color: var(--gold); padding: 10px 14px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+    td { padding: 10px 14px; border-bottom: 1px solid #f0ece4; color: var(--navy); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #faf7f0; }
+
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+    .badge-active    { background: #d4edda; color: #155724; }
+    .badge-paused    { background: #fff3cd; color: #856404; }
+    .badge-draft     { background: #e2e3e5; color: #383d41; }
+    .badge-completed { background: #cce5ff; color: #004085; }
+
+    .actions { display: flex; gap: 6px; }
+
+    /* Modal */
+    .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 100; align-items: center; justify-content: center; }
+    .modal-bg.open { display: flex; }
+    .modal { background: var(--white); border-radius: 14px; padding: 32px; width: 480px; max-width: 95vw; display: flex; flex-direction: column; gap: 14px; max-height: 90vh; overflow-y: auto; }
+    .modal h3 { font-size: 16px; margin-bottom: 4px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* Snippet */
+    .snippet { background: var(--navy); color: #a8ff78; border-radius: 8px; padding: 14px 16px; font-family: monospace; font-size: 12px; white-space: pre; overflow-x: auto; }
+
+    .empty { text-align: center; color: var(--gray); padding: 40px; font-size: 13px; }
+    .loading-msg { color: var(--gray); font-size: 13px; padding: 20px 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">MOUSSA STUDIO <span>Admin</span></div>
+  <button class="btn btn-ghost btn-sm" onclick="logout()">Déconnexion</button>
+</header>
+
+<!-- Login -->
+<div id="login-wrap">
+  <div class="login-card">
+    <h2>Administration</h2>
+    <div class="field">
+      <label>Token admin</label>
+      <input type="password" id="admin-token" placeholder="Ton ADMIN_SECRET"/>
+    </div>
+    <div id="login-err" class="error" style="display:none">Token incorrect.</div>
+    <button class="btn btn-primary" onclick="adminLogin()">Connexion</button>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <div class="page">
+
+    <!-- Campagnes -->
+    <div class="toolbar">
+      <h2>Campagnes</h2>
+      <button class="btn btn-gold" onclick="openCampaignModal()">+ Nouvelle campagne</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Nom</th><th>Annonceur</th><th>Placement</th>
+            <th>Dates</th><th>Statut</th><th>Budget</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="camp-tbody">
+          <tr><td colspan="7" class="empty">Chargement…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Snippet intégration -->
+    <div style="background:var(--white);border-radius:12px;border:1.5px solid var(--lgray);padding:20px 24px;margin-bottom:28px;">
+      <h3 style="font-size:14px;margin-bottom:12px;">Intégrer une pub sur ta page</h3>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Placement</label>
+        <select id="snippet-placement" onchange="updateSnippet()">
+          <option value="newsletter">newsletter</option>
+          <option value="blog_sidebar">blog_sidebar</option>
+          <option value="template">template</option>
+          <option value="youtube">youtube</option>
+        </select>
+      </div>
+      <div id="snippet-code" class="snippet"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal campagne -->
+<div class="modal-bg" id="camp-modal">
+  <div class="modal">
+    <h3 id="modal-title">Nouvelle campagne</h3>
+    <input type="hidden" id="camp-id"/>
+
+    <div class="field">
+      <label>Nom de la campagne</label>
+      <input type="text" id="camp-name" placeholder="Kit.com — Newsletter Juin 2026"/>
+    </div>
+    <div class="field">
+      <label>Email annonceur</label>
+      <input type="email" id="camp-email" placeholder="marketing@example.com"/>
+    </div>
+    <div class="field">
+      <label>Placement</label>
+      <select id="camp-placement">
+        <option value="newsletter">Newsletter</option>
+        <option value="blog_sidebar">Blog sidebar</option>
+        <option value="template">Template Notion</option>
+        <option value="youtube">YouTube shoutout</option>
+      </select>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Date de début</label>
+        <input type="date" id="camp-start"/>
+      </div>
+      <div class="field">
+        <label>Date de fin</label>
+        <input type="date" id="camp-end"/>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Budget (€)</label>
+        <input type="number" id="camp-budget" placeholder="200"/>
+      </div>
+      <div class="field">
+        <label>Statut</label>
+        <select id="camp-status">
+          <option value="draft">Draft</option>
+          <option value="active">Active</option>
+          <option value="paused">Paused</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--lgray);"/>
+    <h3 style="font-size:14px;">Créatif</h3>
+    <div class="field">
+      <label>URL de l'image</label>
+      <input type="url" id="cre-image" placeholder="https://..."/>
+    </div>
+    <div class="field">
+      <label>URL de destination (clic)</label>
+      <input type="url" id="cre-click" placeholder="https://..."/>
+    </div>
+    <div class="field">
+      <label>Texte alternatif</label>
+      <input type="text" id="cre-alt" placeholder="Essayez Kit.com — email marketing pour créateurs"/>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveCampaign()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let TOKEN = "";
+const BASE = "";
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+async function adminLogin() {
+  TOKEN = document.getElementById("admin-token").value.trim();
+  const res = await fetch("/.netlify/functions/admin?resource=campaigns", {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+  if (!res.ok) {
+    document.getElementById("login-err").style.display = "block";
+    TOKEN = "";
+    return;
+  }
+  document.getElementById("login-wrap").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  const data = await res.json();
+  renderCampaigns(data);
+  updateSnippet();
+}
+
+function logout() {
+  TOKEN = "";
+  location.reload();
+}
+
+// ── Campaigns ─────────────────────────────────────────────────────────────
+async function loadCampaigns() {
+  const res  = await fetch("/.netlify/functions/admin?resource=campaigns", {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+  const data = await res.json();
+  renderCampaigns(data);
+}
+
+function renderCampaigns(camps) {
+  const tbody = document.getElementById("camp-tbody");
+  if (!camps.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Aucune campagne. Créez-en une.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = camps.map(c => `
+    <tr>
+      <td><strong>${esc(c.name)}</strong></td>
+      <td>${esc(c.advertiser?.name || "—")}<br><span style="font-size:11px;color:var(--gray)">${esc(c.advertiser?.email || "")}</span></td>
+      <td>${esc(c.placement)}</td>
+      <td style="font-size:12px">${c.start_date || "—"}<br>${c.end_date || "—"}</td>
+      <td><span class="badge badge-${c.status}">${c.status}</span></td>
+      <td>${c.budget_eur ? "€" + parseFloat(c.budget_eur).toFixed(0) : "—"}</td>
+      <td>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm" onclick="editCampaign(${JSON.stringify(c).replace(/"/g,'&quot;')})">Éditer</button>
+          <button class="btn btn-sm" style="background:#e3f2fd;color:#0d47a1" onclick="copyDashLink('${c.id}')">Lien rapport</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteCampaign('${c.id}')">Suppr.</button>
+        </div>
+      </td>
+    </tr>
+  `).join("");
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────
+function openCampaignModal(c) {
+  document.getElementById("camp-modal").classList.add("open");
+  document.getElementById("modal-title").textContent = c ? "Modifier la campagne" : "Nouvelle campagne";
+  document.getElementById("camp-id").value       = c?.id       || "";
+  document.getElementById("camp-name").value     = c?.name     || "";
+  document.getElementById("camp-email").value    = c?.advertiser?.email || "";
+  document.getElementById("camp-placement").value= c?.placement || "newsletter";
+  document.getElementById("camp-start").value    = c?.start_date || "";
+  document.getElementById("camp-end").value      = c?.end_date   || "";
+  document.getElementById("camp-budget").value   = c?.budget_eur || "";
+  document.getElementById("camp-status").value   = c?.status    || "draft";
+  document.getElementById("cre-image").value     = "";
+  document.getElementById("cre-click").value     = "";
+  document.getElementById("cre-alt").value       = "";
+}
+
+function editCampaign(c) { openCampaignModal(c); }
+function closeModal()    { document.getElementById("camp-modal").classList.remove("open"); }
+
+async function saveCampaign() {
+  const id = document.getElementById("camp-id").value;
+  const payload = {
+    name:       document.getElementById("camp-name").value,
+    placement:  document.getElementById("camp-placement").value,
+    start_date: document.getElementById("camp-start").value,
+    end_date:   document.getElementById("camp-end").value,
+    budget_eur: document.getElementById("camp-budget").value || null,
+    status:     document.getElementById("camp-status").value,
+  };
+
+  const action = id ? "update" : "create";
+  if (id) payload.id = id;
+
+  const res = await fetch("/.netlify/functions/admin", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ resource: "campaigns", action, data: payload }),
+  });
+  const saved = await res.json();
+
+  // Si nouveau créatif renseigné
+  const imgUrl   = document.getElementById("cre-image").value;
+  const clickUrl = document.getElementById("cre-click").value;
+  if (imgUrl && clickUrl) {
+    await fetch("/.netlify/functions/admin", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        resource: "creatives",
+        action: "create",
+        data: {
+          campaign_id: saved.id,
+          image_url:   imgUrl,
+          click_url:   clickUrl,
+          alt_text:    document.getElementById("cre-alt").value || "Publicité",
+          active: true,
+        },
+      }),
+    });
+  }
+
+  closeModal();
+  loadCampaigns();
+}
+
+async function deleteCampaign(id) {
+  if (!confirm("Supprimer cette campagne ?")) return;
+  await fetch("/.netlify/functions/admin", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ resource: "campaigns", action: "delete", data: { id } }),
+  });
+  loadCampaigns();
+}
+
+// ── Utilitaires ───────────────────────────────────────────────────────────
+function copyDashLink(id) {
+  const url = `${location.origin}/dashboard/?campaignId=${id}`;
+  navigator.clipboard.writeText(url);
+  alert("Lien copié :\n" + url + "\n\nEnvoie ce lien à l'annonceur avec son DASHBOARD_SECRET.");
+}
+
+function esc(s) {
+  return (s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function updateSnippet() {
+  const placement = document.getElementById("snippet-placement")?.value || "newsletter";
+  const origin    = location.origin;
+  document.getElementById("snippet-code").textContent =
+`<!-- Moussa Studio Ad — placement: ${placement} -->
+<div data-ms-ad="${placement}"></div>
+<script src="${origin}/ad.js" async><\/script>`;
+}
+
+// Entrée clavier login
+document.getElementById("admin-token").addEventListener("keydown", e => {
+  if (e.key === "Enter") adminLogin();
+});
+
+// Fermer modal en cliquant dehors
+document.getElementById("camp-modal").addEventListener("click", e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+</script>
+</body>
+</html>
